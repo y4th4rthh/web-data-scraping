@@ -3,3 +3,8 @@ uvicorn
 requests
 beautifulsoup4
 fake_useragent
+python-dotenv
+python-multipart
+httpx
+aiohttp
+motor
