@@ -12,6 +12,8 @@ import uuid
 import os
 import random
 import datetime
+from fastapi.responses import PlainTextResponse
+
 
 load_dotenv()
 app = FastAPI()
@@ -69,6 +71,29 @@ def scrape_page(url: str):
     except Exception as e:
         return f"⚠️ Error fetching content: {e}"
 
+@app.get("/top-news-csv", response_class=PlainTextResponse)
+async def get_top_news_csv():
+    ua = UserAgent()
+    headers = {'User-Agent': ua.random}
+    url = "https://www.bing.com/news"
+
+    try:
+        res = requests.get(url, headers=headers)
+        soup = BeautifulSoup(res.text, 'html.parser')
+
+        # Get top 15 headlines
+        headlines = [item.get_text(strip=True) for item in soup.select("a.title, a.news-card-title, h2 a, .title a")[:20]]
+
+        # Format as CSV with "Prompt" header
+        csv_data = "Prompt\n" + "\n".join(f'"{title}"' for title in headlines)
+
+        print(csv_data)
+
+        return csv_data
+
+    except Exception as e:
+        return f"⚠️ Failed to fetch news: {str(e)}"
+
 
 @app.get("/search")
 async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...)):
@@ -92,7 +117,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
         "timestamp": datetime.datetime.utcnow(),
         "user_text": query,
         "user_id": userId,
-        "model": "web.search.1.o",
+        "model": "neura.vista1.o",
         "ai_response": text
     }
 
