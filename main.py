@@ -9,14 +9,16 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
 import uuid
+import time
+import csv
 import os
-import random
 import datetime
 from fastapi.responses import PlainTextResponse
 
 
 load_dotenv()
 app = FastAPI()
+CSV_FILE = "prompts.csv"
 
 MONGO_URI = os.getenv("MONGO_URI")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
@@ -37,6 +39,66 @@ class TextRequest(BaseModel):
     model: str = "web.search1.o"
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
+
+
+def fetch_news_titles():
+    ua = UserAgent()
+    headers = {'User-Agent': ua.random}
+    url = "https://www.bing.com/news"
+    titles = set()
+
+    print("🔁 Fetching news...")
+
+    # Multiple selectors to increase hit rate
+    selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
+
+    while len(titles) < 30:
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            soup = BeautifulSoup(res.text, 'html.parser')
+
+            # Loop through all selectors
+            for selector in selectors:
+              items = soup.select(selector)
+              for item in items:
+                text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
+                if text and not text.endswith(("…", "...")):
+                   titles.add(text.strip())
+
+            print(f"📈 Got {len(titles)} titles")
+
+            if len(titles) >= 30:
+                break
+
+            print("⏳ Retrying in 2s...")
+            time.sleep(2)  # polite wait
+        except Exception as e:
+            print(f"❌ Error during fetch: {e}")
+            time.sleep(5)
+
+    top_30 = list(titles)
+
+    # Save to CSV
+    with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Prompt"])
+        for title in top_30:
+            writer.writerow([title])
+
+    print("✅ prompts.csv updated.")
+
+# fetch_news_titles()
+
+
+@app.get("/fetch-news-now")
+def manual_news_fetch():
+    fetch_news_titles()
+    return {"status": "✅ News updated manually"}
+
+
+# Call it once on startup to initialize file
+if not os.path.exists(CSV_FILE):
+    fetch_news_titles()
 
 
 def bing_search(query: str, max_results=5):
@@ -71,28 +133,14 @@ def scrape_page(url: str):
     except Exception as e:
         return f"⚠️ Error fetching content: {e}"
 
+
 @app.get("/top-news-csv", response_class=PlainTextResponse)
 async def get_top_news_csv():
-    ua = UserAgent()
-    headers = {'User-Agent': ua.random}
-    url = "https://www.bing.com/news"
-
     try:
-        res = requests.get(url, headers=headers)
-        soup = BeautifulSoup(res.text, 'html.parser')
-
-        # Get top 15 headlines
-        headlines = [item.get_text(strip=True) for item in soup.select("a.title, a.news-card-title, h2 a, .title a")[:20]]
-
-        # Format as CSV with "Prompt" header
-        csv_data = "Prompt\n" + "\n".join(f'"{title}"' for title in headlines)
-
-        print(csv_data)
-
-        return csv_data
-
+        with open(CSV_FILE, "r", encoding="utf-8") as f:
+            return f.read()
     except Exception as e:
-        return f"⚠️ Failed to fetch news: {str(e)}"
+        return f"⚠️ Failed to load CSV: {str(e)}"
 
 
 @app.get("/search")
@@ -106,7 +154,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
             "url": url,
             "content": content
         })
-    
+
     print(results)
 
     text = f"🔗 [SOURCE]({results[0]['url']})\n\n{results[0]['content']}"
