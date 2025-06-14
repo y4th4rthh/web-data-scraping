@@ -130,16 +130,16 @@ def scrape_page(url: str, query: str):
     try:
         ua = UserAgent()
         headers = {'User-Agent': ua.random}
-        res = requests.get(url, headers=headers, timeout=5)
+        res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, 'html.parser')
         paras = soup.find_all('p')
-        content = "\n".join(p.get_text() for p in paras[:10])
+        content = "\n".join(p.get_text() for p in paras)
 
         # Basic relevance check
         if is_relevant(content, query):
             return content
         else:
-            return "⚠️ Skipped irrelevant content."
+            return null
 
     except Exception as e:
         return f"⚠️ Error fetching content: {e}"
@@ -161,10 +161,11 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
 
     for url in links:
         content = scrape_page(url,query)
-        results.append({
+        if content:
+           results.append({
             "url": url,
             "content": content
-        })
+           })
 
     print(results)
 
