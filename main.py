@@ -14,6 +14,7 @@ import csv
 import os
 import datetime
 from fastapi.responses import PlainTextResponse
+from difflib import SequenceMatcher
 
 
 load_dotenv()
@@ -40,6 +41,8 @@ class TextRequest(BaseModel):
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
 
+def is_relevant(content: str, query: str, threshold=0.3):
+    return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
 
 def fetch_news_titles():
     ua = UserAgent()
@@ -101,7 +104,7 @@ if not os.path.exists(CSV_FILE):
     fetch_news_titles()
 
 
-def bing_search(query: str, max_results=5):
+def bing_search(query: str, max_results=20):
     ua = UserAgent()
     headers = {'User-Agent': ua.random}
 
@@ -122,14 +125,21 @@ def bing_search(query: str, max_results=5):
     return links
 
 
-def scrape_page(url: str):
+def scrape_page(url: str, query: str):
     try:
         ua = UserAgent()
         headers = {'User-Agent': ua.random}
         res = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(res.text, 'html.parser')
         paras = soup.find_all('p')
-        return "\n".join(p.get_text() for p in paras[:5])
+        content = "\n".join(p.get_text() for p in paras[:10])
+
+        # Basic relevance check
+        if is_relevant(content, query):
+            return content
+        else:
+            return "⚠️ Skipped irrelevant content."
+
     except Exception as e:
         return f"⚠️ Error fetching content: {e}"
 
@@ -149,7 +159,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
     results = []
 
     for url in links:
-        content = scrape_page(url)
+        content = scrape_page(url,query)
         results.append({
             "url": url,
             "content": content
