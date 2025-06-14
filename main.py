@@ -21,6 +21,7 @@ load_dotenv()
 app = FastAPI()
 CSV_FILE = "prompts.csv"
 
+BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
@@ -40,6 +41,8 @@ class TextRequest(BaseModel):
     model: str = "web.search1.o"
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
+
+BASE_URL = "https://api.search.brave.com/res/v1/web/search"
 
 def is_relevant(content: str, query: str, threshold=0.3):
     return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
@@ -153,19 +156,36 @@ async def get_top_news_csv():
     except Exception as e:
         return f"⚠️ Failed to load CSV: {str(e)}"
 
+def brave_search(query: str, count: int = 10, offset: int = 0, country: str = "IN", search_lang: str = "en"):
+    headers = {
+        "Accept": "application/json",
+        "X-Subscription-Token": BRAVE_API_KEY
+    }
+    params = {
+        "q": query,
+        "count": count,
+        "offset": offset,
+        "country": country.lower(),
+        "search_lang": search_lang,
+        "spellcheck": "1",
+        "result_filter": "web"
+    }
+    resp = requests.get(BASE_URL, headers=headers, params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    return data.get("results", [])
 
 @app.get("/search")
 async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...)):
-    links = bing_search(query)
+    items = brave_search(query, count=10)
     results = []
-
-    for url in links:
-        content = scrape_page(url,query)
-        if content:
-           results.append({
-            "url": url,
-            "content": content
-           })
+    
+    for item in items:
+        url = item.get("url")
+        snippet = item.get("snippet", "")
+        # If deeper scrape is needed, use your scrape_page():
+        content = scrape_page(url, query)  
+        results.append({"url": url, "content": content or snippet})
 
     print(results)
 
