@@ -133,7 +133,7 @@ def scrape_page(url: str, query: str):
         res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, 'html.parser')
         paras = soup.find_all('p')
-        content = "\n".join(p.get_text() for p in paras[:30)
+        content = "\n".join(p.get_text() for p in paras[:30])
 
         # Basic relevance check
         if is_relevant(content, query):
