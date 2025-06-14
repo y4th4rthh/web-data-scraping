@@ -139,7 +139,7 @@ def scrape_page(url: str, query: str):
         if is_relevant(content, query):
             return content
         else:
-            return "nocontent"
+            return content
 
     except Exception as e:
         return f"⚠️ Error fetching content: {e}"
@@ -161,7 +161,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
 
     for url in links:
         content = scrape_page(url,query)
-        if content != "nocontent":
+        if content:
            results.append({
             "url": url,
             "content": content
