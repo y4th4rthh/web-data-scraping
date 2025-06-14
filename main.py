@@ -104,7 +104,7 @@ if not os.path.exists(CSV_FILE):
     fetch_news_titles()
 
 
-def bing_search(query: str, max_results=20):
+def bing_search(query: str, max_results=100):
     ua = UserAgent()
     headers = {'User-Agent': ua.random}
 
