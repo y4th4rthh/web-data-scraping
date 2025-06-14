@@ -110,6 +110,7 @@ def bing_search(query: str, max_results=100):
 
     encoded_query = urllib.parse.quote_plus(query)
     url = f"https://www.bing.com/search?q={encoded_query}"
+    print(url)
 
     res = requests.get(url, headers=headers)
     soup = BeautifulSoup(res.text, 'html.parser')
