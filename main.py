@@ -67,9 +67,9 @@ def extract_keywords_from_titles(titles):
 
         # Extract keywords line by line
         for line in result_text.splitlines():
-            line = line.strip("- ").strip()
-            if line and not line.startswith("Headline"):
-                keywords.append(line)
+            match = re.search(r"->\s*(.*)", line)
+            if match:
+                keywords.append(match.group(1).strip())
         
         # Ensure the count matches
         if len(keywords) != len(titles):
