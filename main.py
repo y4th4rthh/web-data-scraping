@@ -53,10 +53,7 @@ def extract_keywords_from_titles(titles):
     prompt = (
         "Convert each news headline into a short keyword-style summary. "
         "Remove location/event noise, keep main subject and action. "
-        "Example:\n"
-        "- Headline: 'Kohli scored a century in India vs England test cricket series'\n"
-        "- Keyword 'Kohli scored century'\n\n"
-        "Now convert the following headlines taking example as refrence:\n\n"
+        "Dont give headline or index value in output"
     )
 
     prompt += "\n".join([f"{title}" for title in enumerate(titles)])
@@ -65,6 +62,7 @@ def extract_keywords_from_titles(titles):
         response = model.generate_content(prompt)
         result_text = response.text.strip()
         keywords = []
+        print(result_text)
 
         for line in result_text.splitlines():
             line = line.strip("- ").strip()
