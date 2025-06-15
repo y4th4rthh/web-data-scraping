@@ -248,7 +248,7 @@ async def get_top_prompt_csv():
 
 
 @app.get("/search")
-async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...)):
+async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...), incognito: str = Query(...)):
     links = bing_search(query)
     results = []
 
@@ -265,15 +265,16 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
     text = f"🔗 [SOURCE]({results[0]['url']})\n\n{results[0]['content']}"
 
     session_id = "web" + str(uuid.uuid4())
-    chat_doc = {
+    if incognito == false:
+       chat_doc = {
         "session_id": session_id,
         "timestamp": datetime.datetime.utcnow(),
         "user_text": query,
         "user_id": userId,
         "model": "neura.vista1.o",
         "ai_response": text
-    }
+       }
 
-    await chats_collection.insert_one(chat_doc)
+       await chats_collection.insert_one(chat_doc)
 
     return {"results": results}
