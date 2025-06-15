@@ -54,8 +54,8 @@ def extract_keywords_from_titles(titles):
         "Remove location/event noise, keep main subject and action. "
         "Example:\n"
         "- Headline: 'Kohli scored a century in India vs England test cricket series'\n"
-        "  → 'Kohli scored century'\n\n"
-        "Now convert the following headlines:\n\n"
+        "- Keyword 'Kohli scored century'\n\n"
+        "Now convert the following headlines taking example as refrence:\n\n"
     )
 
     prompt += "\n".join([f"{i+1}. {title}" for i, title in enumerate(titles)])
@@ -119,6 +119,7 @@ def fetch_news_titles():
 
     top_30 = list(titles)
     keywords = extract_keywords_from_titles(top_30)
+    print(keywords)
 
     # Save to CSV
     with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
