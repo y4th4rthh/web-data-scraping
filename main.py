@@ -71,7 +71,7 @@ def fetch_news_titles():
 
     selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
 
-    while len(prompt_phrases) < 30:
+    while len(prompt_phrases) < 20:
         try:
             res = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -87,7 +87,7 @@ def fetch_news_titles():
 
             print(f"📈 Got {len(prompt_phrases)} phrases")
 
-            if len(prompt_phrases) >= 30:
+            if len(prompt_phrases) >= 20:
                 break
 
             print("⏳ Retrying in 2s...")
@@ -96,7 +96,7 @@ def fetch_news_titles():
             print(f"❌ Error during fetch: {e}")
             time.sleep(5)
 
-    top_phrases = list(prompt_phrases)[:30]
+    top_phrases = list(prompt_phrases)[:20]
 
     # Save to CSV
     with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
