@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from typing import Optional
 import uuid
+import re
 import time
 import csv
 import os
