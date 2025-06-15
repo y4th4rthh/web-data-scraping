@@ -13,6 +13,7 @@ import time
 import csv
 import os
 import datetime
+import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
 
@@ -20,7 +21,8 @@ from difflib import SequenceMatcher
 load_dotenv()
 app = FastAPI()
 CSV_FILE = "prompts.csv"
-
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
 MONGO_URI = os.getenv("MONGO_URI")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
@@ -43,6 +45,42 @@ class TextRequest(BaseModel):
 
 def is_relevant(content: str, query: str, threshold=0.3):
     return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
+
+def extract_keywords_from_titles(titles):
+    model = genai.GenerativeModel("models/gemini-1.5-flash")
+
+    prompt = (
+        "Convert each news headline into a short keyword-style summary. "
+        "Remove location/event noise, keep main subject and action. "
+        "Example:\n"
+        "- Headline: 'Kohli scored a century in India vs England test cricket series'\n"
+        "  → 'Kohli scored century'\n\n"
+        "Now convert the following headlines:\n\n"
+    )
+
+    prompt += "\n".join([f"{i+1}. {title}" for i, title in enumerate(titles)])
+
+    try:
+        response = model.generate_content(prompt)
+        result_text = response.text.strip()
+        keywords = []
+
+        # Extract keywords line by line
+        for line in result_text.splitlines():
+            line = line.strip("- ").strip()
+            if line and not line.startswith("Headline"):
+                keywords.append(line)
+        
+        # Ensure the count matches
+        if len(keywords) != len(titles):
+            print("⚠️ Warning: Keyword count mismatch. Falling back to original titles.")
+            return titles
+
+        return keywords
+    except Exception as e:
+        print(f"❌ Gemini Flash error: {e}")
+        return titles
+
 
 def fetch_news_titles():
     ua = UserAgent()
@@ -80,13 +118,14 @@ def fetch_news_titles():
             time.sleep(5)
 
     top_30 = list(titles)
+    keywords = extract_keywords_from_titles(top_30)
 
     # Save to CSV
     with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Prompt"])
-        for title in top_30:
-            writer.writerow([title])
+        for keyword in keywords:
+            writer.writerow([keyword])
 
     print("✅ prompts.csv updated.")
 
