@@ -22,6 +22,7 @@ from difflib import SequenceMatcher
 load_dotenv()
 app = FastAPI()
 CSV_FILE = "prompts.csv"
+PR_CSV_FILE = "daily-prompts.csv"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 MONGO_URI = os.getenv("MONGO_URI")
@@ -134,12 +135,57 @@ def fetch_news_titles():
 @app.get("/fetch-news-now")
 def manual_news_fetch():
     fetch_news_titles()
+    get_titles()
     return {"status": "✅ News updated manually"}
 
 
 # Call it once on startup to initialize file
 if not os.path.exists(CSV_FILE):
     fetch_news_titles()
+
+
+def get_titles():
+    model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
+
+    prompt = (
+        "You are a creative AI assistant.\n"
+        "Given a list of festival-related news headlines, extract the core theme and rewrite each as a short, creative prompt.\n"
+        "These prompts should inspire creative writing, tweets, memes, or AI responses.\n"
+        "Do NOT number them, do NOT prefix with 'Headline', just return a clean list of prompts.\n"
+        "Each prompt should be inspired by the headline, festival-themed, and phrased in an engaging way.\n\n"
+        "Examples:\n"
+        "- Write a haiku about Diwali lights.\n"
+        "- Describe Holi from a color’s point of view.\n"
+        "- Pitch a new food dish for Christmas.\n"
+        "- What would Santa tweet after eating too many cookies?\n\n"
+        "Now convert the following headlines:\n"
+    )
+
+
+    try:
+        response = model.generate_content(prompt)
+        result_text = response.text.strip()
+        keywords = []
+        print(result_text)
+
+        for line in result_text.splitlines():
+            line = line.strip("- ").strip()
+            if line and not line.startswith("Headline"):
+                keywords.append(line)
+
+
+        with open(PR_CSV_FILE, "w", newline='', encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Prompt"])
+            for keyword in keywords:
+                writer.writerow([keyword])
+
+        print("✅ prompts.csv updated.")
+
+    except Exception as e:
+        print(f"❌ Gemini Flash error: {e}")
+
+        
 
 
 def bing_search(query: str, max_results=100):
@@ -187,6 +233,15 @@ def scrape_page(url: str, query: str):
 async def get_top_news_csv():
     try:
         with open(CSV_FILE, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"⚠️ Failed to load CSV: {str(e)}"
+    
+
+@app.get("/prompt-csv", response_class=PlainTextResponse)
+async def get_top_prompt_csv():
+    try:
+        with open(PR_CSV_FILE, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return f"⚠️ Failed to load CSV: {str(e)}"
