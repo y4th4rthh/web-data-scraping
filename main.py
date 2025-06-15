@@ -57,7 +57,7 @@ def extract_keywords_from_titles(titles):
         "Dont give headline or index value in output"
     )
 
-    prompt += "\n".join([f"{title}" for title in enumerate(titles)])
+    prompt += "\n" + "\n".join(titles)
 
     try:
         response = model.generate_content(prompt)
