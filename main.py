@@ -15,6 +15,10 @@ import os
 import datetime
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import string
+import nltk
 
 
 load_dotenv()
@@ -41,6 +45,22 @@ class TextRequest(BaseModel):
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
 
+nltk.download('punkt')
+nltk.download('stopwords')
+
+STOPWORDS = set(stopwords.words('english'))
+PUNCTUATION = set(string.punctuation)
+
+def extract_prompt_phrase(title):
+    words = word_tokenize(title)
+    keywords = [
+        word for word in words
+        if word.lower() not in STOPWORDS and word not in PUNCTUATION and word.isalpha()
+    ]
+    if len(keywords) >= 3:
+        return " ".join(keywords[:3])  # First 3 keywords
+    return " ".join(keywords) 
+
 def is_relevant(content: str, query: str, threshold=0.3):
     return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
 
@@ -48,47 +68,48 @@ def fetch_news_titles():
     ua = UserAgent()
     headers = {'User-Agent': ua.random}
     url = "https://www.bing.com/news"
-    titles = set()
+    prompt_phrases = set()
 
     print("🔁 Fetching news...")
 
-    # Multiple selectors to increase hit rate
     selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
 
-    while len(titles) < 30:
+    while len(prompt_phrases) < 30:
         try:
             res = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
 
-            # Loop through all selectors
             for selector in selectors:
-              items = soup.select(selector)
-              for item in items:
-                text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
-                if text and not text.endswith(("…", "...")):
-                   titles.add(text.strip())
+                items = soup.select(selector)
+                for item in items:
+                    text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
+                    if text and not text.endswith(("…", "...")):
+                        phrase = extract_prompt_phrase(text.strip())
+                        if phrase:
+                            prompt_phrases.add(phrase)
 
-            print(f"📈 Got {len(titles)} titles")
+            print(f"📈 Got {len(prompt_phrases)} phrases")
 
-            if len(titles) >= 30:
+            if len(prompt_phrases) >= 30:
                 break
 
             print("⏳ Retrying in 2s...")
-            time.sleep(2)  # polite wait
+            time.sleep(2)
         except Exception as e:
             print(f"❌ Error during fetch: {e}")
             time.sleep(5)
 
-    top_30 = list(titles)
+    top_phrases = list(prompt_phrases)[:30]
 
     # Save to CSV
     with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Prompt"])
-        for title in top_30:
-            writer.writerow([title])
+        for phrase in top_phrases:
+            writer.writerow([phrase])
 
     print("✅ prompts.csv updated.")
+
 
 # fetch_news_titles()
 
