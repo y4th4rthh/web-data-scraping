@@ -71,32 +71,25 @@ def fetch_news_titles():
 
     selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
 
-    while len(prompt_phrases) < 20:
-        try:
-            res = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(res.text, 'html.parser')
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, 'html.parser')
 
-            for selector in selectors:
-                items = soup.select(selector)
-                for item in items:
-                    text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
-                    if text and not text.endswith(("…", "...")):
-                        phrase = extract_prompt_phrase(text.strip())
-                        if phrase:
-                            prompt_phrases.add(phrase)
+        for selector in selectors:
+            items = soup.select(selector)
+            for item in items:
+                text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
+                if text and not text.endswith(("…", "...")):
+                    phrase = extract_prompt_phrase(text.strip())
+                    if phrase:
+                        prompt_phrases.add(phrase)
 
-            print(f"📈 Got {len(prompt_phrases)} phrases")
+        print(f"📈 Got {len(prompt_phrases)} phrases")
+        print(prompt_phrases)
 
-            print(prompt_phrases)
-
-            if len(prompt_phrases) >= 15:
-                break
-
-            print("⏳ Retrying in 2s...")
-            time.sleep(2)
-        except Exception as e:
-            print(f"❌ Error during fetch: {e}")
-            time.sleep(5)
+    except Exception as e:
+        print(f"❌ Error during fetch: {e}")
+        return
 
     top_phrases = list(prompt_phrases)[:15]
 
