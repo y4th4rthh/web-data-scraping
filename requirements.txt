@@ -8,4 +8,4 @@ python-multipart
 httpx
 aiohttp
 motor
-nltk
+spacy==3.7.2
