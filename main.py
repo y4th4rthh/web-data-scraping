@@ -15,10 +15,8 @@ import os
 import datetime
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+import spacy
 import string
-import nltk
 
 
 load_dotenv()
@@ -30,8 +28,7 @@ mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
 chats_collection = db["chats"]
 
-nltk.download('punkt_tab', quiet=True)
-nltk.download('stopwords', quiet=True)
+nlp = spacy.load("en_core_web_sm")
 
 # Optional CORS if using frontend
 app.add_middleware(
@@ -48,18 +45,18 @@ class TextRequest(BaseModel):
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
 
-STOPWORDS = set(stopwords.words('english'))
+STOPWORDS = nlp.Defaults.stop_words
 PUNCTUATION = set(string.punctuation)
 
 def extract_prompt_phrase(title):
-    words = word_tokenize(title)
+    doc = nlp(title)
     keywords = [
-        word for word in words
-        if word.lower() not in STOPWORDS and word not in PUNCTUATION and word.isalpha()
+        token.text for token in doc
+        if token.text.lower() not in STOPWORDS and token.text not in PUNCTUATION and token.is_alpha
     ]
     if len(keywords) >= 3:
-        return " ".join(keywords[:3])  # First 3 keywords
-    return " ".join(keywords) 
+        return " ".join(keywords[:3])
+    return " ".join(keywords)
 
 def is_relevant(content: str, query: str, threshold=0.3):
     return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
