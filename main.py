@@ -87,6 +87,8 @@ def fetch_news_titles():
 
             print(f"📈 Got {len(prompt_phrases)} phrases")
 
+            print(prompt_phrases)
+
             if len(prompt_phrases) >= 15:
                 break
 
@@ -179,11 +181,10 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
 
     for url in links:
         content = scrape_page(url,query)
-        if content:
-           results.append({
+        results.append({
             "url": url,
             "content": content
-           })
+        })
 
     print(results)
 
