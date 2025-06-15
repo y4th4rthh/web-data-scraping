@@ -59,7 +59,7 @@ def extract_keywords_from_titles(titles):
         "Now convert the following headlines taking example as refrence:\n\n"
     )
 
-    prompt += "\n".join([f"{i+1}. {title}" for i, title in enumerate(titles)])
+    prompt += "\n".join([f"{title}" for title in enumerate(titles)])
 
     try:
         response = model.generate_content(prompt)
@@ -94,7 +94,7 @@ def fetch_news_titles():
     # Multiple selectors to increase hit rate
     selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
 
-    while len(titles) < 30:
+    while len(titles) < 20:
         try:
             res = requests.get(url, headers=headers, timeout=10)
             soup = BeautifulSoup(res.text, 'html.parser')
@@ -109,7 +109,7 @@ def fetch_news_titles():
 
             print(f"📈 Got {len(titles)} titles")
 
-            if len(titles) >= 30:
+            if len(titles) >= 15:
                 break
 
             print("⏳ Retrying in 2s...")
