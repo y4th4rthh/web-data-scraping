@@ -30,6 +30,9 @@ mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
 chats_collection = db["chats"]
 
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
+
 # Optional CORS if using frontend
 app.add_middleware(
     CORSMiddleware,
@@ -44,9 +47,6 @@ class TextRequest(BaseModel):
     model: str = "web.search1.o"
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
-
-nltk.download('punkt')
-nltk.download('stopwords')
 
 STOPWORDS = set(stopwords.words('english'))
 PUNCTUATION = set(string.punctuation)
