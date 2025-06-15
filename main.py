@@ -75,7 +75,7 @@ def extract_keywords_from_titles(titles):
         # Ensure the count matches
         if len(keywords) != len(titles):
             print("⚠️ Warning: Keyword count mismatch. Falling back to original titles.")
-            return titles
+            return keywords
 
         return keywords
     except Exception as e:
