@@ -47,7 +47,7 @@ def is_relevant(content: str, query: str, threshold=0.3):
     return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
 
 def extract_keywords_from_titles(titles):
-    model = genai.GenerativeModel("models/gemini-1.5-flash")
+    model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
 
     prompt = (
         "Convert each news headline into a short keyword-style summary. "
