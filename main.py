@@ -87,7 +87,7 @@ def fetch_news_titles():
 
             print(f"📈 Got {len(prompt_phrases)} phrases")
 
-            if len(prompt_phrases) >= 20:
+            if len(prompt_phrases) >= 15:
                 break
 
             print("⏳ Retrying in 2s...")
@@ -96,7 +96,7 @@ def fetch_news_titles():
             print(f"❌ Error during fetch: {e}")
             time.sleep(5)
 
-    top_phrases = list(prompt_phrases)[:20]
+    top_phrases = list(prompt_phrases)[:15]
 
     # Save to CSV
     with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
