@@ -265,7 +265,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
     text = f"🔗 [SOURCE]({results[0]['url']})\n\n{results[0]['content']}"
 
     session_id = "web" + str(uuid.uuid4())
-    if incognito == False:
+    if incognito == "false":
        chat_doc = {
         "session_id": session_id,
         "timestamp": datetime.datetime.utcnow(),
