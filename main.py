@@ -262,7 +262,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
 
     print(results)
 
-    text = f"🔗 [SOURCE]({results[0]['url']})\n\n{results[0]['content']}"
+    text = f"🔗 [SOURCE]({results['url']})\n\n{results['content']}"
 
     session_id = "web" + str(uuid.uuid4())
     if incognito == "false":
