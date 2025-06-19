@@ -255,10 +255,27 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
     for url in links:
         content = scrape_page(url,query)
         if content:
-           results.append({
-            "url": url,
-            "content": content
-           })
+           model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
+
+           prompt = (
+               "You are an AI assistant that helps check whether a given piece of content is related to a keyword.\n"
+               "You must do the following:\n"
+               "1. Carefully read the content.\n"
+               "2. Check if the content contains or is clearly related to the keyword.\n"
+               "3. If it is, respond with only: YES\n"
+               "4. If not, respond with only: NO\n"
+               "You MUST reply with only a single word: YES or NO. No explanations, no extra text.\n\n"
+               f"Keyword: {query}\n\n"
+               f"Content: {content}"
+           )
+           response = model.generate_content(prompt)
+           result_text = response.text.strip()
+
+           if "YES" in result_text:
+               results.append({
+               "url": url,
+               "content": content
+               })
 
     print(results)
 
