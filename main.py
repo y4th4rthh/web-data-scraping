@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, File, UploadFile
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from bs4 import BeautifulSoup
@@ -17,9 +17,6 @@ import datetime
 import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
-from transformers import BlipProcessor, BlipForConditionalGeneration
-from PIL import Image
-import io
 
 
 load_dotenv()
@@ -32,9 +29,6 @@ MONGO_URI = os.getenv("MONGO_URI")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
 chats_collection = db["chats"]
-
-processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-imgmodel = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
 
 # Optional CORS if using frontend
@@ -302,15 +296,3 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
        await chats_collection.insert_one(chat_doc)
 
     return {"results": results}
-
-
-@app.post("/blip-caption")
-async def generate_caption(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-
-    inputs = processor(image, return_tensors="pt")
-    out = imgmodel.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
-
-    return {"caption": caption}
