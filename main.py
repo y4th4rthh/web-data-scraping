@@ -13,7 +13,7 @@ import re
 import time
 import csv
 import os
-import datetime
+import datetim
 import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
@@ -146,7 +146,7 @@ if not os.path.exists(CSV_FILE):
 
 
 def get_titles():
-    model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     prompt = (
         "You are a creative AI assistant.\n"
@@ -256,7 +256,7 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
     for url in links:
         content = scrape_page(url,query)
         if content:
-           model = genai.GenerativeModel("models/gemini-1.5-flash-8b")
+           model = genai.GenerativeModel("gemini-2.5-flash")
 
            prompt = (
                "You are an AI assistant that helps check whether a given piece of content is related to a keyword.\n"
