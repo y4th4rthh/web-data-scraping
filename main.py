@@ -51,7 +51,7 @@ MODEL = genai.GenerativeModel("gemini-2.5-flash")  # or gemini-pro
 # -----------------------------
 #  STEP 1: SCRAPE REDDIT LINKS FROM GOOGLE
 # -----------------------------
-def google_reddit_search(query, limit=10):  # keeping the same name for compatibility
+async def google_reddit_search(query, limit=10):  # keeping the same name for compatibility
     ua = UserAgent()
     headers = {"User-Agent": ua.random}
     q = urllib.parse.quote_plus(f"site:reddit.com {query}")
@@ -88,7 +88,7 @@ def google_reddit_search(query, limit=10):  # keeping the same name for compatib
 
 
 
-def scrape_reddit_post(url):
+async def scrape_reddit_post(url):
     """Scrape Reddit post and top comments from old.reddit.com"""
     ua = UserAgent()
     headers = {"User-Agent": ua.random}
@@ -129,7 +129,7 @@ def scrape_reddit_post(url):
 # -----------------------------
 #  STEP 3: SUMMARIZE USING GEMINI
 # -----------------------------
-def summarize_reddit_results(query, reddit_data):
+async def summarize_reddit_results(query, reddit_data):
     # Filter out empty or error posts
     valid_posts = [d for d in reddit_data if "error" not in d and (d.get("comments") or d.get("post"))]
 
@@ -168,7 +168,7 @@ Reddit data:
 # -----------------------------
 async def reddit_ai_answer(query):
     print(f"🔍 Searching Reddit for: {query}")
-    urls = google_reddit_search(query, limit=5)
+    urls = await google_reddit_search(query, limit=5)
 
     print(f"\nFound {len(urls)} Reddit posts:")
     for u in urls:
@@ -177,12 +177,12 @@ async def reddit_ai_answer(query):
     print("\n📥 Scraping posts...")
     reddit_data = []
     for u in urls:
-        post = scrape_reddit_post(u)
+        post = await scrape_reddit_post(u)
         reddit_data.append(post)
         time.sleep(2)  # avoid hitting too fast
 
     print("\n🤖 Summarizing using Gemini...")
-    summary = summarize_reddit_results(query, reddit_data)
+    summary = await summarize_reddit_results(query, reddit_data)
     
     formatted_urls = "\n".join(urls) if urls else "No URLs found."
     final_answer = f"\n🔎 Final Answer:\n{summary}\n\n🔗 Related Reddit Posts:\n{formatted_urls}"
