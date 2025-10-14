@@ -13,7 +13,7 @@ import re
 import time
 import csv
 import os
-import datetim
+import datetime
 import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
