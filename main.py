@@ -57,10 +57,10 @@ MODEL = genai.GenerativeModel("gemini-2.5-flash")  # or gemini-pro
 async def reddit_search(query, limit=5):
     posts = []
 
-    # Use Reddit's search API
-    async for submission in reddit.subreddit("all").search(query, limit=limit):
-        # Fetch top 3 comments
+    subreddit = await reddit.subreddit("all")  # ✅ FIXED
+    async for submission in subreddit.search(query, limit=limit):
         await submission.load()
+
         comments = []
         submission.comments.replace_more(limit=0)
         for c in submission.comments[:3]:
@@ -74,7 +74,6 @@ async def reddit_search(query, limit=5):
         })
 
     return posts
-
 
 
 # -----------------------------
