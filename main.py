@@ -126,7 +126,7 @@ Reddit data:
 # -----------------------------
 async def reddit_ai_answer(query):
     print(f"🔍 Searching Reddit for: {query}")
-    reddit_data = await reddit_api_search(query, limit=5)
+    reddit_data = await reddit_search(query, limit=5)
 
     print(f"\nFound {len(reddit_data)} Reddit posts:")
     for post in reddit_data:
