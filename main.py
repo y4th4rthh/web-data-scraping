@@ -77,6 +77,9 @@ async def google_reddit_search(query, limit=10):  # keeping the same name for co
         print("⚠️ Bing returned no Reddit results. Using Reddit search instead...")
         reddit_search_url = f"https://www.reddit.com/search/?q={urllib.parse.quote_plus(query)}"
         res2 = requests.get(reddit_search_url, headers=headers, timeout=10)
+        print("STATUS CODE:", res2.status_code)
+        print("HEADERS:", res2.headers)
+        print(res2.text[:1000])
         soup2 = BeautifulSoup(res2.text, "html.parser")
 
         for a in soup2.find_all("a", href=True):
