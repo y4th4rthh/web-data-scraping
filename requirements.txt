@@ -7,6 +7,7 @@ python-dotenv
 python-multipart
 httpx
 aiohttp
+asyncpraw
 motor
 google-generativeai>=0.4.0
 spacy==3.7.2
