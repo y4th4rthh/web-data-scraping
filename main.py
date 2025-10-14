@@ -18,7 +18,6 @@ import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
 
-
 load_dotenv()
 app = FastAPI()
 CSV_FILE = "prompts.csv"
@@ -46,241 +45,156 @@ class TextRequest(BaseModel):
     user_id: Optional[str] = None
     sessionId: Optional[str] = None
 
-def is_relevant(content: str, query: str, threshold=0.3):
-    return SequenceMatcher(None, content.lower(), query.lower()).ratio() > threshold
 
-def extract_keywords_from_titles(titles):
-    model = genai.GenerativeModel("gemini-2.5-flash")
+MODEL = genai.GenerativeModel("gemini-2.5-flash")  # or gemini-pro
 
-    prompt = (
-        "Convert each news headline into a short keyword-style summary. "
-        "Remove location/event noise, keep main subject and action. "
-        "Dont give headline or index value in output"
-    )
-
-    prompt += "\n" + "\n".join(titles)
-
-    try:
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
-        keywords = []
-        print(result_text)
-
-        for line in result_text.splitlines():
-            line = line.strip("- ").strip()
-            if line and not line.startswith("Headline"):
-                keywords.append(line)
-        
-        # Ensure the count matches
-        if len(keywords) != len(titles):
-            print("⚠️ Warning: Keyword count mismatch. Falling back to original titles.")
-            return keywords
-
-        return keywords
-    except Exception as e:
-        print(f"❌ Gemini Flash error: {e}")
-        return titles
-
-
-def fetch_news_titles():
+# -----------------------------
+#  STEP 1: SCRAPE REDDIT LINKS FROM GOOGLE
+# -----------------------------
+def google_reddit_search(query, limit=10):  # keeping the same name for compatibility
     ua = UserAgent()
-    headers = {'User-Agent': ua.random}
-    url = "https://www.bing.com/news"
-    titles = set()
+    headers = {"User-Agent": ua.random}
+    q = urllib.parse.quote_plus(f"site:reddit.com {query}")
+    url = f"https://www.bing.com/search?q={q}&count={limit}"
 
-    print("🔁 Fetching news...")
-
-    # Multiple selectors to increase hit rate
-    selectors = ["a.title", "h2 > a", "a[href^='/news/']", ".title a"]
-
-    while len(titles) < 20:
-        try:
-            res = requests.get(url, headers=headers, timeout=10)
-            soup = BeautifulSoup(res.text, 'html.parser')
-
-            # Loop through all selectors
-            for selector in selectors:
-              items = soup.select(selector)
-              for item in items:
-                text = item.get("title") or item.get("aria-label") or item.get_text(strip=True)
-                if text and not text.endswith(("…", "...")):
-                   titles.add(text.strip())
-
-            print(f"📈 Got {len(titles)} titles")
-
-            if len(titles) >= 15:
-                break
-
-            print("⏳ Retrying in 2s...")
-            time.sleep(2)  # polite wait
-        except Exception as e:
-            print(f"❌ Error during fetch: {e}")
-            time.sleep(5)
-
-    top_30 = list(titles)
-    keywords = extract_keywords_from_titles(top_30)
-    print(keywords)
-
-    # Save to CSV
-    with open(CSV_FILE, "w", newline='', encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Prompt"])
-        for keyword in keywords:
-            writer.writerow([keyword])
-
-    print("✅ prompts.csv updated.")
-
-# fetch_news_titles()
-
-
-@app.get("/fetch-news-now")
-def manual_news_fetch():
-    fetch_news_titles()
-    get_titles()
-    return {"status": "✅ News updated manually"}
-
-
-# Call it once on startup to initialize file
-if not os.path.exists(CSV_FILE):
-    fetch_news_titles()
-
-
-def get_titles():
-    model = genai.GenerativeModel("gemini-2.5-flash")
-
-    prompt = (
-        "You are a creative AI assistant.\n"
-        "Given a list of festival-related news headlines, extract the core theme and rewrite each as a short, creative prompt.\n"
-        "These prompts should inspire creative writing, tweets, memes, or AI responses.\n"
-        "Do NOT number them, do NOT prefix with 'Headline', just return a clean list of prompts.\n"
-        "Each prompt should be inspired by the headline, festival-themed, and phrased in an engaging way.\n\n"
-        "Examples:\n"
-        "- Write a haiku about Diwali lights.\n"
-        "- Describe Holi from a color’s point of view.\n"
-        "- Pitch a new food dish for Christmas.\n"
-        "- What would Santa tweet after eating too many cookies?\n\n"
-        "Now convert the following headlines:\n"
-    )
-
-
-    try:
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
-        keywords = []
-        print(result_text)
-
-        for line in result_text.splitlines():
-            line = line.strip("- ").strip()
-            if line and not line.startswith("Headline"):
-                keywords.append(line)
-
-
-        with open(PR_CSV_FILE, "w", newline='', encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Prompt"])
-            for keyword in keywords:
-                writer.writerow([keyword])
-
-        print("✅ prompts.csv updated.")
-
-    except Exception as e:
-        print(f"❌ Gemini Flash error: {e}")
-
-        
-
-
-def bing_search(query: str, max_results=100):
-    ua = UserAgent()
-    headers = {'User-Agent': ua.random}
-
-    encoded_query = urllib.parse.quote_plus(query)
-    url = f"https://www.bing.com/search?q={encoded_query}"
-    print(url)
-
-    res = requests.get(url, headers=headers)
-    soup = BeautifulSoup(res.text, 'html.parser')
+    res = requests.get(url, headers=headers, timeout=10)
+    soup = BeautifulSoup(res.text, "html.parser")
 
     links = []
-    for item in soup.find_all('li', {'class': 'b_algo'}):
-        a_tag = item.find('a')
-        if a_tag and a_tag['href'].startswith('http'):
-            links.append(a_tag['href'])
-            if len(links) >= max_results:
+    for li in soup.find_all("li", {"class": "b_algo"}):
+        a_tag = li.find("a", href=True)
+        if a_tag:
+            href = a_tag["href"]
+            if "reddit.com/r/" in href and "/comments/" in href:
+                links.append(href)
+        if len(links) >= limit:
+            break
+
+    # --- Fallback if Bing finds nothing ---
+    if len(links) == 0:
+        print("⚠️ Bing returned no Reddit results. Using Reddit search instead...")
+        reddit_search_url = f"https://www.reddit.com/search/?q={urllib.parse.quote_plus(query)}"
+        res2 = requests.get(reddit_search_url, headers=headers, timeout=10)
+        soup2 = BeautifulSoup(res2.text, "html.parser")
+
+        for a in soup2.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith("/r/") and "/comments/" in href:
+                links.append("https://www.reddit.com" + href)
+            if len(links) >= limit:
                 break
 
     return links
 
 
-def scrape_page(url: str, query: str):
-    try:
-        ua = UserAgent()
-        headers = {'User-Agent': ua.random}
-        res = requests.get(url, headers=headers, timeout=15)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        paras = soup.find_all('p')
-        content = "\n".join(p.get_text() for p in paras[:30])
 
-        # Basic relevance check
-        if is_relevant(content, query):
-            return content
-        else:
-            return content
+def scrape_reddit_post(url):
+    """Scrape Reddit post and top comments from old.reddit.com"""
+    ua = UserAgent()
+    headers = {"User-Agent": ua.random}
+
+    try:
+        # Convert to old Reddit
+        old_url = re.sub(r"www\.reddit\.com", "old.reddit.com", url)
+        res = requests.get(old_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        # Title
+        title_tag = soup.find("a", class_="title")
+        title = title_tag.text.strip() if title_tag else "No title found"
+
+        # Post text
+        post_body = soup.find("div", class_="expando")
+        post_text = post_body.get_text(strip=True) if post_body else ""
+
+        # Top 3 comments
+        comments = []
+        for c in soup.select("div.entry .md")[:3]:
+            txt = c.get_text(strip=True)
+            if txt and len(txt) > 30:
+                comments.append(txt)
+
+        # Combine data
+        return {
+            "url": url,
+            "title": title,
+            "post": post_text,
+            "comments": comments
+        }
 
     except Exception as e:
-        return f"⚠️ Error fetching content: {e}"
+        return {"url": url, "error": str(e)}
 
 
-@app.get("/top-news-csv", response_class=PlainTextResponse)
-async def get_top_news_csv():
-    try:
-        with open(CSV_FILE, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        return f"⚠️ Failed to load CSV: {str(e)}"
+# -----------------------------
+#  STEP 3: SUMMARIZE USING GEMINI
+# -----------------------------
+def summarize_reddit_results(query, reddit_data):
+    # Filter out empty or error posts
+    valid_posts = [d for d in reddit_data if "error" not in d and (d.get("comments") or d.get("post"))]
+
+    if not valid_posts:
+        return "No meaningful Reddit data found to summarize."
+
+    # Sort by amount of text (prefer longer posts)
+    valid_posts.sort(key=lambda d: len(" ".join(d.get("comments", [])) + d.get("post", "")), reverse=True)
+
+    # Only keep top 2 for Gemini summarization
+    top_posts = valid_posts[:2]
+
+    text_block = ""
+    for d in top_posts:
+        text_block += f"\n---\nTitle: {d['title']}\nPost: {d.get('post','')}\nComments:\n" + "\n".join(d['comments']) + "\n"
+
+    prompt = f"""
+You are an intelligent Reddit summarizer.
+Given the following Reddit posts and their top comments, summarize and extract the most relevant, informative insights
+to the query: "{query}".
+
+Respond in short bullet points or a short paragraph.
+Avoid URLs, and only include useful insights.
+
+Reddit data:
+{text_block}
+    """
+
+    response = MODEL.generate_content(prompt)
+    return response.text.strip()
+
+
+
+# -----------------------------
+#  STEP 4: MAIN FUNCTION
+# -----------------------------
+async def reddit_ai_answer(query):
+    print(f"🔍 Searching Reddit for: {query}")
+    urls = google_reddit_search(query, limit=5)
+
+    print(f"\nFound {len(urls)} Reddit posts:")
+    for u in urls:
+        print(" -", u)
+
+    print("\n📥 Scraping posts...")
+    reddit_data = []
+    for u in urls:
+        post = scrape_reddit_post(u)
+        reddit_data.append(post)
+        time.sleep(2)  # avoid hitting too fast
+
+    print("\n🤖 Summarizing using Gemini...")
+    summary = summarize_reddit_results(query, reddit_data)
     
+    formatted_urls = "\n".join(urls) if urls else "No URLs found."
+    final_answer = f"\n🔎 Final Answer:\n{summary}\n\n🔗 Related Reddit Posts:\n{formatted_urls}"
 
-@app.get("/prompt-csv", response_class=PlainTextResponse)
-async def get_top_prompt_csv():
-    try:
-        with open(PR_CSV_FILE, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        return f"⚠️ Failed to load CSV: {str(e)}"
+    return final_answer
+     
 
 
 @app.get("/search")
 async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...), incognito: str = Query(...)):
-    links = bing_search(query)
-    results = []
-
-    for url in links:
-        content = scrape_page(url,query)
-        if content:
-           model = genai.GenerativeModel("gemini-2.5-flash")
-
-           prompt = (
-               "You are an AI assistant that helps check whether a given piece of content is related to a keyword.\n"
-               "You must do the following:\n"
-               "1. Carefully read the content.\n"
-               "2. Check if the content contains or is clearly related to the keyword.\n"
-               "3. If it is, respond with only: YES\n"
-               "4. If not, respond with only: NO\n"
-               "You MUST reply with only a single word: YES or NO. No explanations, no extra text.\n\n"
-               f"Keyword: {query}\n\n"
-               f"Content: {content}"
-           )
-           response = model.generate_content(prompt)
-           result_text = response.text.strip()
-
-           if "YES" in result_text:
-               results.append({
-               "url": url,
-               "content": content
-               })
-
-    print(results)
-
-    text = f"🔗 [SOURCE]({results[0]['url']})\n\n{results[0]['content']}"
+    
+    result = await reddit_ai_answer(query)
 
     session_id = "web" + str(uuid.uuid4())
     if incognito == "false":
@@ -290,9 +204,9 @@ async def search_and_scrape(query: str = Query(..., min_length=3), userId: str =
         "user_text": query,
         "user_id": userId,
         "model": "neura.vista1.o",
-        "ai_response": text
+        "ai_response": result
        }
 
        await chats_collection.insert_one(chat_doc)
 
-    return {"results": results}
+    return {"result": result}
