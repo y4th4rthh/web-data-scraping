@@ -135,7 +135,7 @@ async def reddit_ai_answer(query):
     summary = await summarize_reddit_results(query, reddit_data)  # your Gemini function can stay mostly the same
 
     formatted_urls = "\n".join([p["url"] for p in reddit_data]) if reddit_data else "No URLs found."
-    final_answer = f"\n🔎 Final Answer:\n{summary}\n\n🔗 Related Reddit Posts:\n{formatted_urls}"
+    final_answer = f"\n🔎 *Final Answer:*\n\n{summary}\n\n🔗 *Related Reddit Source:*\n\n{formatted_urls}"
 
     return final_answer
      
