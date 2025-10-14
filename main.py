@@ -53,7 +53,9 @@ MODEL = genai.GenerativeModel("gemini-2.5-flash")  # or gemini-pro
 # -----------------------------
 async def google_reddit_search(query, limit=10):  # keeping the same name for compatibility
     ua = UserAgent()
-    headers = {"User-Agent": ua.random}
+    # headers = {"User-Agent": ua.random}
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
+
     q = urllib.parse.quote_plus(f"site:reddit.com {query}")
     url = f"https://www.bing.com/search?q={q}&count={limit}"
 
