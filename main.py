@@ -13,6 +13,7 @@ import re
 import time
 import csv
 import os
+import asyncpraw
 import datetime
 import google.generativeai as genai
 from fastapi.responses import PlainTextResponse
@@ -29,6 +30,11 @@ mongo_client = AsyncIOMotorClient(MONGO_URI)
 db = mongo_client["neuraai"]
 chats_collection = db["chats"]
 
+reddit = asyncpraw.Reddit(
+    client_id=os.getenv("REDDIT_CLIENT_ID"),
+    client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
+    user_agent=os.getenv("REDDIT_USER_AGENT")
+)
 
 # Optional CORS if using frontend
 app.add_middleware(
@@ -48,108 +54,54 @@ class TextRequest(BaseModel):
 
 MODEL = genai.GenerativeModel("gemini-2.5-flash")  # or gemini-pro
 
-# -----------------------------
-#  STEP 1: SCRAPE REDDIT LINKS FROM GOOGLE
-# -----------------------------
-async def google_reddit_search(query, limit=10):  # keeping the same name for compatibility
-    ua = UserAgent()
-    # headers = {"User-Agent": ua.random}
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"}
+async def reddit_search(query, limit=5):
+    posts = []
 
-    q = urllib.parse.quote_plus(f"site:reddit.com {query}")
-    url = f"https://www.bing.com/search?q={q}&count={limit}"
-
-    res = requests.get(url, headers=headers, timeout=10)
-    soup = BeautifulSoup(res.text, "html.parser")
-
-    links = []
-    for li in soup.find_all("li", {"class": "b_algo"}):
-        a_tag = li.find("a", href=True)
-        if a_tag:
-            href = a_tag["href"]
-            if "reddit.com/r/" in href and "/comments/" in href:
-                links.append(href)
-        if len(links) >= limit:
-            break
-
-    # --- Fallback if Bing finds nothing ---
-    if len(links) == 0:
-        print("⚠️ Bing returned no Reddit results. Using Reddit search instead...")
-        reddit_search_url = f"https://www.reddit.com/search/?q={urllib.parse.quote_plus(query)}"
-        res2 = requests.get(reddit_search_url, headers=headers, timeout=10)
-        print("STATUS CODE:", res2.status_code)
-        print("HEADERS:", res2.headers)
-        print(res2.text[:1000])
-        soup2 = BeautifulSoup(res2.text, "html.parser")
-
-        for a in soup2.find_all("a", href=True):
-            href = a["href"]
-            if href.startswith("/r/") and "/comments/" in href:
-                links.append("https://www.reddit.com" + href)
-            if len(links) >= limit:
-                break
-
-    return links
-
-
-
-async def scrape_reddit_post(url):
-    """Scrape Reddit post and top comments from old.reddit.com"""
-    ua = UserAgent()
-    headers = {"User-Agent": ua.random}
-
-    try:
-        # Convert to old Reddit
-        old_url = re.sub(r"www\.reddit\.com", "old.reddit.com", url)
-        res = requests.get(old_url, headers=headers, timeout=10)
-        soup = BeautifulSoup(res.text, "html.parser")
-
-        # Title
-        title_tag = soup.find("a", class_="title")
-        title = title_tag.text.strip() if title_tag else "No title found"
-
-        # Post text
-        post_body = soup.find("div", class_="expando")
-        post_text = post_body.get_text(strip=True) if post_body else ""
-
-        # Top 3 comments
+    # Use Reddit's search API
+    async for submission in reddit.subreddit("all").search(query, limit=limit):
+        # Fetch top 3 comments
+        await submission.load()
         comments = []
-        for c in soup.select("div.entry .md")[:3]:
-            txt = c.get_text(strip=True)
-            if txt and len(txt) > 30:
-                comments.append(txt)
+        submission.comments.replace_more(limit=0)
+        for c in submission.comments[:3]:
+            comments.append(c.body)
 
-        # Combine data
-        return {
-            "url": url,
-            "title": title,
-            "post": post_text,
+        posts.append({
+            "url": f"https://reddit.com{submission.permalink}",
+            "title": submission.title,
+            "post_text": submission.selftext,
             "comments": comments
-        }
+        })
 
-    except Exception as e:
-        return {"url": url, "error": str(e)}
+    return posts
+
 
 
 # -----------------------------
 #  STEP 3: SUMMARIZE USING GEMINI
 # -----------------------------
 async def summarize_reddit_results(query, reddit_data):
-    # Filter out empty or error posts
-    valid_posts = [d for d in reddit_data if "error" not in d and (d.get("comments") or d.get("post"))]
+    # Filter out posts that have no comments or no post_text
+    valid_posts = [d for d in reddit_data if d.get("comments") or d.get("post_text")]
 
     if not valid_posts:
         return "No meaningful Reddit data found to summarize."
 
-    # Sort by amount of text (prefer longer posts)
-    valid_posts.sort(key=lambda d: len(" ".join(d.get("comments", [])) + d.get("post", "")), reverse=True)
+    # Sort by amount of text (prefer longer posts + comments)
+    valid_posts.sort(key=lambda d: len(" ".join(d.get("comments", [])) + d.get("post_text", "")), reverse=True)
 
-    # Only keep top 2 for Gemini summarization
+    # Only keep top 2 for summarization
     top_posts = valid_posts[:2]
 
+    # Build text block for Gemini
     text_block = ""
     for d in top_posts:
-        text_block += f"\n---\nTitle: {d['title']}\nPost: {d.get('post','')}\nComments:\n" + "\n".join(d['comments']) + "\n"
+        text_block += (
+            f"\n---\n"
+            f"Title: {d['title']}\n"
+            f"Post: {d.get('post_text','')}\n"
+            f"Comments:\n" + "\n".join(d.get('comments', [])) + "\n"
+        )
 
     prompt = f"""
 You are an intelligent Reddit summarizer.
@@ -168,28 +120,22 @@ Reddit data:
 
 
 
+
 # -----------------------------
 #  STEP 4: MAIN FUNCTION
 # -----------------------------
 async def reddit_ai_answer(query):
     print(f"🔍 Searching Reddit for: {query}")
-    urls = await google_reddit_search(query, limit=5)
+    reddit_data = await reddit_api_search(query, limit=5)
 
-    print(f"\nFound {len(urls)} Reddit posts:")
-    for u in urls:
-        print(" -", u)
-
-    print("\n📥 Scraping posts...")
-    reddit_data = []
-    for u in urls:
-        post = await scrape_reddit_post(u)
-        reddit_data.append(post)
-        time.sleep(2)  # avoid hitting too fast
+    print(f"\nFound {len(reddit_data)} Reddit posts:")
+    for post in reddit_data:
+        print(" -", post["url"])
 
     print("\n🤖 Summarizing using Gemini...")
-    summary = await summarize_reddit_results(query, reddit_data)
-    
-    formatted_urls = "\n".join(urls) if urls else "No URLs found."
+    summary = await summarize_reddit_results(query, reddit_data)  # your Gemini function can stay mostly the same
+
+    formatted_urls = "\n".join([p["url"] for p in reddit_data]) if reddit_data else "No URLs found."
     final_answer = f"\n🔎 Final Answer:\n{summary}\n\n🔗 Related Reddit Posts:\n{formatted_urls}"
 
     return final_answer
