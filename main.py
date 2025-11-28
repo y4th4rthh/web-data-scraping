@@ -142,6 +142,10 @@ async def reddit_ai_answer(query):
     return final_answer
      
 
+@app.get("/ping")
+async def ping():
+    """Keep-alive / health check endpoint"""
+    return {"status": "ok"}
 
 @app.get("/search")
 async def search_and_scrape(query: str = Query(..., min_length=3), userId: str = Query(...), incognito: str = Query(...)):
