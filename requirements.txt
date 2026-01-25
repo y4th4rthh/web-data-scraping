@@ -6,6 +6,7 @@ fake_useragent
 python-dotenv
 python-multipart
 httpx
+groq
 aiohttp
 asyncpraw
 motor
