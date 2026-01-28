@@ -189,7 +189,7 @@ Instructions: Generate a concise TL;DR of this summary following the system prom
             )
         response_tldr = tldr_chat_completion.choices[0].message.content
         tldr_result = response_tldr.strip()
-        final_response = summary_result + "\n\n" + tldr_result
+        final_response = summary_result + "\n\n\u200b\n\n" + tldr_result
         # response = MODEL.generate_content(prompt)
         return final_response
     
