@@ -124,10 +124,20 @@ Rules:
 - Avoid speculation or filler
 - Use emojis naturally where they help emphasize a point, make instructions clearer
 
-Output format (STRICT):
+Formatting rules (STRICT):
 1. Write the summary in paragraphs.
 2. After the summary, add TWO line breaks.
 3. On a NEW line, write the TL;DR in italics, starting exactly with '*TL;DR:* '.
+
+Output format (STRICT):
+Paragraph 1
+\\u200b
+Paragraph 2
+\\u200b
+(optional Paragraph 3)
+\\u200b
+\\u200b
+*TL;DR:* ...
 
 Do not merge the TL;DR with the summary.
 """
