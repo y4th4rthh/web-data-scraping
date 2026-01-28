@@ -123,7 +123,7 @@ Rules:
 - Provide only the most relevant insights
 - Avoid speculation or filler
 - Use emojis sparingly where they add clarity or emphasis
-- Give tldr of over all summary at the last in the italics.
+- Give tldr of over all summary in a new line at the last in the italics.
 """
 
     user_prompt = f"""
