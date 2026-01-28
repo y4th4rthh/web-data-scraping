@@ -122,7 +122,7 @@ Rules:
 - Keep the summary in thorough and clear manner (maximum 2–3 paragraphs)
 - Provide only the most relevant insights
 - Avoid speculation or filler
-- Use emojis sparingly where they add clarity or emphasis
+- Use emojis naturally where they help emphasize a point, make instructions clearer
 
 Output format (STRICT):
 1. Write the summary in paragraphs.
