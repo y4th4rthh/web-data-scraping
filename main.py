@@ -119,25 +119,15 @@ You are a helpful assistant that summarizes Google search results.
 
 Rules:
 - Focus on useful, factual, and up-to-date information
-- Keep the summary in thorough and clear manner (maximum 2–3 paragraphs)
+- Keep the summary in thorough and clear manner (maximum 1–2 paragraphs)
 - Provide only the most relevant insights
 - Avoid speculation or filler
 - Use emojis naturally where they help emphasize a point, make instructions clearer
 
-Formatting rules (STRICT):
+Output Format (STRICT):
 1. Write the summary in paragraphs.
 2. After the summary, add TWO line breaks.
 3. On a NEW line, write the TL;DR in italics, starting exactly with '*TL;DR:* '.
-
-Output format (STRICT):
-Paragraph 1
-\\u200b
-Paragraph 2
-\\u200b
-(optional Paragraph 3)
-\\u200b
-\\u200b
-*TL;DR:* ...
 
 Do not merge the TL;DR with the summary.
 """
