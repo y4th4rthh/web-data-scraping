@@ -33,7 +33,6 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
 client = genai.Client()
 
-genai.configure(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MONGO_URI = os.getenv("MONGO_URI")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
