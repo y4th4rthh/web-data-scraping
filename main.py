@@ -18,6 +18,8 @@ import os
 import asyncpraw
 import datetime
 import google.generativeai as genai
+from google import genai
+from google.genai import types
 from fastapi.responses import PlainTextResponse
 from difflib import SequenceMatcher
 import httpx
@@ -29,6 +31,7 @@ PR_CSV_FILE = "daily-prompts.csv"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_SEARCH_ENGINE_ID = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+client = genai.Client()
 
 genai.configure(api_key=GEMINI_API_KEY)
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -61,7 +64,6 @@ class TextRequest(BaseModel):
     sessionId: Optional[str] = None
 
 
-MODEL = genai.GenerativeModel("gemini-2.5-flash")
 
 
 # -----------------------------
@@ -275,12 +277,16 @@ to the query: "{query}".
 Respond in short bullet points or a short paragraph.
 Avoid URLs, and only include useful insights.
 
-Reddit data:
-{text_block}
     """
 
     try:
-        response = MODEL.generate_content(prompt)
+        response = client.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=f"""Reddit data: {text_block}""",
+                config=types.GenerateContentConfig(
+                  system_instruction=prompt,
+                ),
+        )
         return response.text.strip()
     except Exception as e:
         print(f"❌ Reddit summarization error: {e}")
