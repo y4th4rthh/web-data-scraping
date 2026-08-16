@@ -163,7 +163,7 @@ Rules:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-20b",
                 max_tokens=2000,
                 temperature=0.9
             )
@@ -184,7 +184,7 @@ Instructions: Generate a concise TL;DR of this summary following the system prom
                     {"role": "system", "content": system_prompt_tldr},
                     {"role": "user", "content": user_prompt_tldr}
                 ],
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-20b",
                 max_tokens=2000,
                 temperature=0.9
             )
